@@ -20,8 +20,7 @@ gt_subsample = 1;%2;
 subsample_models = 1;
 
 %% get model IDs
-load('../3d_recog_by_parts_humanprior/trainIDs.mat');
-train_IDs = [train_IDs 151 161 171 181 191];% 201 211 221 231 241 251 281 291 301 311];
+load('../3d_recog_by_parts_humanprior/testIDs.mat');
 
 %% load segments for each model
 FLAGS=[];
@@ -38,31 +37,21 @@ FLAGS.flag_humanprior=1;
 idxGood=1;
 idxBad=1;
 idx_all=1;
-startBoth=1;
 
 bin_sz=0.15;%0.1, 0.15 - good, 0.2 - bad
 id_k_mapping = [1:400 ; ones(1,400)*22]';% ; 103 21 ; 125 15];
 
 cat_ID=[1:20:400 400];
 idx_allData = 1;
-startAllSegs = 1;
 startOnlyGood=1;
 startBoth = 1;
 startBad = 1;
 startGood = 1;
 startAllSegs = 1;
 
-for i=1:length(train_IDs)
-    ID=train_IDs(i);
-    
-    %     [pcloud_raw, faces] = loadPcloud( ID );
-    %     if pcloud_raw==-1
-    %         continue;
-    %     end
-    %     pcloud_raw_facepts = tkConvertFaces2Points(pcloud_raw, faces);
-    %     [normalv,normalf] = compute_normal(pcloud_raw',faces');
-    %     [O1, Z1, G1, X1, clist1, options1, nbh1, segment_graph1, scale1, labeling_ours] = loadDecompositionFile(ID,k,id_k_mapping);
-    
+for i=1:2%length(test_IDs)
+    ID=test_IDs(i);
+   
     [pcloud, faces] = loadPcloud( ID );
     pcloud_fcpts = tkConvertFaces2Points(pcloud, faces);
     
@@ -283,7 +272,163 @@ badPairsL = badPairsL(:,1:startBad-1);
 badPairsR = badPairsR(:,1:startBad-1);
 
 save(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models)  ...
-    '_' num2str(gt_subsample) '.mat'],'goodPairsL','goodPairsR','badPairsL',...
+    '_' num2str(gt_subsample) '_test.mat'],'goodPairsL','goodPairsR','badPairsL',...
     'badPairsR','allSegs');
 
 disp('done preprocessing');
+
+
+% clear, close all
+% dbstop if error
+% 
+% %% add paths
+% addpath('../3d_recog_by_parts_humanprior/main_functions/');
+% addpath(genpath('../3d_recog_by_parts_humanprior/presegmentation/'));
+% addpath('../3d_recog_by_parts_humanprior/parameters/');
+% addpath('../3d_recog_by_parts_humanprior/');
+% addpath('../3d_recog_by_parts_humanprior/geometry');
+% addpath('../3d_recog_by_parts_humanprior/matching');
+% addpath('../3d_recog_by_parts_humanprior/human_prior');
+% addpath('../3d_recog_by_parts_humanprior/loaders');
+% addpath('../3d_recog_by_parts_humanprior/bow');
+% addpath('../3d_recog_by_parts_humanprior/visualize');
+% 
+% %% parameters
+% k=22;
+% cat_end_idx = 2;%20;
+% gt_subsample = 3;%2;
+% subsample_models = 1;
+% 
+% %% get model IDs
+% cat_ID=[1:20:400 400];
+% all_ID=[2:1:260 281:1:400];
+% tr_ID=all_ID(1:subsample_models:end);
+% tr_ID  = tr_ID(1:cat_end_idx);
+% 
+% %% load segments for each model
+% FLAGS=[];
+% FLAGS.flag_display=0;
+% FLAGS.flag_reSegment=0;
+% FLAGS.flag_save=1;
+% FLAGS.flag_showgraph=0;
+% FLAGS.flag_RunOrShowResults=1;
+% FLAGS.flag_redo=1;
+% FLAGS.flag_noise = 0;
+% FLAGS.flag_missingdata=0;
+% FLAGS.flag_humanprior=1;
+% 
+% idxGood=1;
+% idxOnlyGood=1;
+% idxBad=1;
+% idx_all=1;
+% startBoth=1;
+% startOnlyGood = 1;
+% 
+% [all_segments,gtinstanceid_for_segments] = fn_loadSegments(cat_end_idx,gt_subsample);
+% id_k_mapping = [1:400 ; ones(1,400)*22]';% ; 103 21 ; 125 15];
+% goodPairsL = zeros(301,10000);
+% goodPairsR = zeros(301,10000);
+% badPairsL = zeros(301,10000);
+% badPairsR = zeros(301,10000);
+% onlyGoodL = zeros(301,10000);
+% onlyGoodR = zeros(301,10000);
+% allSegs   = zeros(301,10000);
+% allSegLabel = zeros(1,10000);
+% 
+% idx_allData = 1;
+% 
+% for i=1:length(tr_ID)
+%     ID=tr_ID(i);
+%     
+%     load avg_gt_labels
+%     [gt] = loadGroundtruth_smart(ID,avg_gt_labels,cat_ID);
+%     
+%    
+%     for g=1:gt_subsample:length(gt)
+%         
+%         gt_label = gt{g}+1;
+%         
+%         [pcloud, faces] = loadPcloud( ID );
+%         pcloud_fcpts = tkConvertFaces2Points(pcloud, faces);
+%         [faces, pcloud, normals, segments, segments_sf, segment_graph, ...
+%             saved_segments, labeling, pcloud_all, options] = fn_preseg(ID, k, 0.0, FLAGS);
+%         
+%         pts_segments = [];
+%         for jj=1:length(segments)
+%             pts_segments = [ pts_segments ; segments{jj}];
+%         end
+%     
+%         minDiff=Inf;
+%         for scale2=0.001:0.01:1
+%             pcloud = pts_segments .* scale2;
+%             [~,~,err]=icp(pcloud(1:10:end,:)',pcloud_fcpts(1:10:end,:)',1);
+%             diff=err;
+%             if scale2==0.001
+%                 diff_last = diff;
+%             end
+%             if diff < minDiff
+%                 minDiff=diff;
+%             end
+%             if diff > diff_last
+%                 break;
+%             end
+%             diff_last = diff;
+%             %scale2
+%         end
+%         
+%         [labels,~]=tkMapToOurPointCloud(pcloud, pcloud_fcpts, gt_label);
+%         
+%         graph = tkBuildSegmentGraph2(segments, pcloud_fcpts, 0);
+%         pcloud = pcloud./scale2;
+%         
+%         for gg=1:max(segment_graph(:))
+%             gtlabel2{gg} = fn_getMajorityGroundTruthLabel(pcloud, labels, segments{gg});
+%         end
+%         gtlabel = cell2mat(gtlabel2);
+%         
+%         %% add allData
+%         allData{idx_allData}.img = pcloud;
+%         allData{idx_allData}.labels = labels; %ground-truth
+%         allData{idx_allData}.segs2 = labeling %initial segments
+%         for ss=1:length(segments)
+%             sel = round(linspace(1,length(segments{ss}),100));
+%             tmp = segments{ss}(sel,:);
+%             allData{idx_allData}.feat2(ss,:) = tmp(:);
+%         end
+%         allData{idx_allData}.segLabels = gtlabel';
+%         allData{idx_allData}.adj = segment_graph;
+%         idx_allData = idx_allData + 1;
+%    
+%     end
+% end
+% 
+% % numAllSegs = idx_all-1;
+% % allSegs= allSegs(:,1:numAllSegs);
+% % allSegLabels= allSegLabel(1:numAllSegs);
+% % 
+% % % KEEP ONLY THE GOOD SEGMENTS IN SEPARATE DATA STRUCTURE - I GUESS FOR
+% % % CONVENIENCE
+% % numOnlyGood = startOnlyGood-1;
+% % onlyGoodL = onlyGoodL(:,1:numOnlyGood);
+% % onlyGoodR = onlyGoodR(:,1:numOnlyGood);
+% % onlyGoodLabels= onlyGoodLabels(1:numOnlyGood);
+% 
+% % numGBPairsAll = startBoth-1;
+% % NOW THESE CONTAIN ALL POSSIBLE ADJACENCIES (PAIRS) OF GOOD AND BAD PAIRS
+% % OF NEIGHBORING ADJACENT SEGMENTS
+% % delete trailing zeros in pre-allocated matrix
+% % goodPairsL = goodPairsL(:,1:numGBPairsAll);
+% % goodPairsR = goodPairsR(:,1:numGBPairsAll);
+% % badPairsL = badPairsL(:,1:numGBPairsAll);
+% % badPairsR = badPairsR(:,1:numGBPairsAll);
+% 
+% % goodPairsL = goodPairsL(1:idxGood-1,:);
+% % goodPairsR = goodPairsR(1:idxGood-1);
+% % badPairsL = badPairsL(1:idxBad-1,:);
+% % badPairsR = badPairsR(1:idxBad-1,:);
+% % allSegs = allSegs(1:idx_all-1,:);
+% save(['output/eval_good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models)  '_' num2str(gt_subsample) '.mat'],'allData');%,'goodPairsL','goodPairsR','badPairsL','badPairsR','onlyGoodL','onlyGoodR','onlyGoodLabels','allSegs','allSegLabels');
+% % save(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models)  '_' num2str(gt_subsample) '.mat'],...
+% %     '','','','allSegs', 'allSegLabel', 'goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
+% 
+% % disp('done preprocessing');

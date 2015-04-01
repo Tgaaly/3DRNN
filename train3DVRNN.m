@@ -15,7 +15,8 @@ tinyDatasetDebug = 1;
 %%%%%%%%%%%%%%%%%%%%%%
 % data set: stanford background data set from Gould et al.
 mainDataSet = 'iccv09-1'
-setDataFolders
+% setDataFolders
+dataSet = 'train';
 
 %%%%%%%%%%%%%%%%%%%%%%%
 % minfunc options (not tuned)
@@ -33,7 +34,7 @@ params.numFeat = 119;
 
 %%%%%%%%%%%%%%%%%%%%%%
 % model parameters (should be ok, found via CV)
-params.numHid = 50;
+params.numHid = 500;%50;
 params.regPTC = 0.0001;
 params.regC = params.regPTC;
 params.LossPerError = 0.05;
@@ -45,13 +46,13 @@ params.df = @(z) (z .* (1 - z));
 
 %%%%%%%%%%%%%%%%%%%%%%
 % input and output file names
-neighNameStem = ['data/' mainDataSet '-allNeighborPairs'];
-if tinyDatasetDebug
-    neighName = [neighNameStem '_' dataSet '_tiny.mat'];
-else
-    neighName = [neighNameStem '_' dataSet '.mat'];
-end
-neighNameEval = [neighNameStem '_' dataSetEval '.mat'];
+% neighNameStem = ['data/' mainDataSet '-allNeighborPairs'];
+% if tinyDatasetDebug
+%     neighName = [neighNameStem '_' dataSet '_tiny.mat'];
+% else
+%     neighName = [neighNameStem '_' dataSet '.mat'];
+% end
+% neighNameEval = [neighNameStem '_' dataSetEval '.mat'];
 
 paramString = ['_hid' num2str(params.numHid ) '_PTC' num2str(params.regPTC)];
 fullParamNameBegin = ['output/' mainDataSet '_fullParams'];
@@ -110,7 +111,7 @@ flag_runmycode=1;
 if flag_runmycode==1
     params.numLabels = 2;%17; % we never predict 0 (void)
     params.numFeat = 2744;%119;
-    cat_end_idx=15;
+    cat_end_idx=30;
     subsample_models=1;
     gt_subsample=1;
     load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '.mat']);
@@ -142,6 +143,12 @@ if flag_runmycode==1
 end
 
 
+training.goodPairsL = goodPairsL(:,1:end);
+training.goodPairsR = goodPairsR(:,1:end);
+training.badPairsL = badPairsL(:,1:end);
+training.badPairsR = badPairsR(:,1:end);
+
+
 X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,goodPairsL,goodPairsR,...
     badPairsL,badPairsR,[],[],allSegs,params);
 
@@ -152,9 +159,9 @@ X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,goodPairsL,goodPairsR,...
 save(fullTrainParamName,'Wbot','W','Wout','Wcat','params','options')
 
 %% test on training set just to verify
-numGood = size(goodPairsL,2);%length(onlyGoodLabels);
-goodBotL= params.f(Wbot* goodPairsL);
-goodBotR= params.f(Wbot* goodPairsR);
+numGood = size(training.goodPairsL,2);%length(onlyGoodLabels);
+goodBotL= params.f(Wbot* training.goodPairsL);
+goodBotR= params.f(Wbot* training.goodPairsR);
 goodHid = params.f(W * [goodBotL; goodBotR; ones(1,numGood)]);
 
 % apply Wcat
@@ -165,9 +172,9 @@ catOutGood = softmax(catHid);
 catOutGood_classIndex = find(catOutGood(1,:)>catOutGood(2,:));
 disp([num2str(length(catOutGood_classIndex)) '/' num2str(size(catHid,2)) ' good correct --> ' num2str(length(catOutGood_classIndex)/size(catHid,2))]);
 
-numBad = size(badPairsL,2);%length(onlyGoodLabels);
-badBotL= params.f(Wbot* badPairsL);
-badBotR= params.f(Wbot* badPairsR);
+numBad = size(training.badPairsL,2);%length(onlyGoodLabels);
+badBotL= params.f(Wbot* training.badPairsL);
+badBotR= params.f(Wbot* training.badPairsR);
 badHid = params.f(W * [badBotL; badBotR; ones(1,numBad)]);
 
 % apply Wcat
@@ -180,8 +187,76 @@ disp([num2str(length(catOutBad_classIndex)) '/' num2str(size(catHid,2)) ' bad co
 disp('complete');
 
 
+%% testing on test set to verify
+
+% numGood = size(testing.goodPairsL,2);%length(onlyGoodLabels);
+% goodBotL= params.f(Wbot* testing.goodPairsL);
+% goodBotR= params.f(Wbot* testing.goodPairsR);
+% goodHid = params.f(W * [goodBotL; goodBotR; ones(1,numGood)]);
+% 
+% % apply Wcat
+% catHid = Wcat * [goodHid ; ones(1,numGood)];
+% 
+% % for goot should all be [1 0]
+% catOutGood = softmax(catHid);
+% catOutGood_classIndex = find(catOutGood(1,:)>catOutGood(2,:));
+% disp([num2str(length(catOutGood_classIndex)) '/' num2str(size(catHid,2)) ' good correct --> ' num2str(length(catOutGood_classIndex)/size(catHid,2))]);
+% 
+% numBad = size(testing.badPairsL,2);%length(onlyGoodLabels);
+% badBotL= params.f(Wbot* testing.badPairsL);
+% badBotR= params.f(Wbot* testing.badPairsR);
+% badHid = params.f(W * [badBotL; badBotR; ones(1,numBad)]);
+% 
+% % apply Wcat
+% catHid = Wcat * [badHid ; ones(1,numBad)];
+% 
+% catOutBad = softmax(catHid);
+% catOutBad_classIndex = find(catOutBad(1,:)<catOutBad(2,:));
+% disp([num2str(length(catOutBad_classIndex)) '/' num2str(size(catHid,2)) ' bad correct --> ' num2str(length(catOutBad_classIndex)/size(catHid,2))]);
+% 
+% disp('complete');
 
 
+%% test on completely new model
+cat_end_idx=20;
+load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '_test.mat']);
+testing.goodPairsL = goodPairsL;
+testing.goodPairsR = goodPairsR;
+testing.badPairsL = badPairsL;
+testing.badPairsR = badPairsR;
+
+numGood = size(testing.goodPairsL,2);%length(onlyGoodLabels);
+goodBotL= params.f(Wbot* testing.goodPairsL);
+goodBotR= params.f(Wbot* testing.goodPairsR);
+goodHid = params.f(W * [goodBotL; goodBotR; ones(1,numGood)]);
+
+% apply Wcat
+catHid = Wcat * [goodHid ; ones(1,numGood)];
+
+% for goot should all be [1 0]
+catOutGood = softmax(catHid);
+catOutGood_classIndex = find(catOutGood(1,:)>catOutGood(2,:));
+disp([num2str(length(catOutGood_classIndex)) '/' num2str(size(catHid,2)) ' good correct --> ' num2str(length(catOutGood_classIndex)/size(catHid,2))]);
+
+numBad = size(testing.badPairsL,2);%length(onlyGoodLabels);
+badBotL= params.f(Wbot* testing.badPairsL);
+badBotR= params.f(Wbot* testing.badPairsR);
+badHid = params.f(W * [badBotL; badBotR; ones(1,numBad)]);
+
+% apply Wcat
+catHid = Wcat * [badHid ; ones(1,numBad)];
+
+catOutBad = softmax(catHid);
+catOutBad_classIndex = find(catOutBad(1,:)<catOutBad(2,:));
+disp([num2str(length(catOutBad_classIndex)) '/' num2str(size(catHid,2)) ' bad correct --> ' num2str(length(catOutBad_classIndex)/size(catHid,2))]);
+
+disp('complete');
+
+
+% for t=1:length(testIDs);
+
+
+%%
 %%%%%%%%%%%%%%%%%%%%%
 % run analysis
 % test3DVRNN
