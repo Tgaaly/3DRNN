@@ -34,10 +34,10 @@ params.numFeat = 119;
 
 %%%%%%%%%%%%%%%%%%%%%%
 % model parameters (should be ok, found via CV)
-params.numHid = 500;%50;
+params.numHid = 100;%50;
 params.regPTC = 0.0001;
 params.regC = params.regPTC;
-params.LossPerError = 0.05;
+params.LossPerError = 0.005;
 
 %sigmoid activation function:
 params.f = @(x) (1./(1 + exp(-x)));
@@ -148,7 +148,18 @@ training.goodPairsR = goodPairsR(:,1:end);
 training.badPairsL = badPairsL(:,1:end);
 training.badPairsR = badPairsR(:,1:end);
 
+%% data augment
 
+goodPairsL2 = goodPairsR; % swap
+goodPairsR2 = goodPairsL;
+badPairsL2 = badPairsR;
+badPairsR2 = badPairsL;
+training.goodPairsL = [training.goodPairsL  goodPairsL2];
+training.goodPairsR = [training.goodPairsR  goodPairsR2];
+training.badPairsL = [training.badPairsL  badPairsL2];
+training.badPairsR = [training.badPairsR  badPairsR2];
+
+%% train
 X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,goodPairsL,goodPairsR,...
     badPairsL,badPairsR,[],[],allSegs,params);
 
@@ -234,6 +245,7 @@ goodHid = params.f(W * [goodBotL; goodBotR; ones(1,numGood)]);
 catHid = Wcat * [goodHid ; ones(1,numGood)];
 
 % for goot should all be [1 0]
+numGood = size(catHid,2);
 catOutGood = softmax(catHid);
 catOutGood_classIndex = find(catOutGood(1,:)>catOutGood(2,:));
 disp([num2str(length(catOutGood_classIndex)) '/' num2str(size(catHid,2)) ' good correct --> ' num2str(length(catOutGood_classIndex)/size(catHid,2))]);
@@ -246,9 +258,13 @@ badHid = params.f(W * [badBotL; badBotR; ones(1,numBad)]);
 % apply Wcat
 catHid = Wcat * [badHid ; ones(1,numBad)];
 
+numBad = size(catHid,2);
 catOutBad = softmax(catHid);
 catOutBad_classIndex = find(catOutBad(1,:)<catOutBad(2,:));
 disp([num2str(length(catOutBad_classIndex)) '/' num2str(size(catHid,2)) ' bad correct --> ' num2str(length(catOutBad_classIndex)/size(catHid,2))]);
+
+
+disp(['over all accuracy = ' num2str((length(catOutGood_classIndex)+length(catOutBad_classIndex))/(numGood+numBad))]);
 
 disp('complete');
 
