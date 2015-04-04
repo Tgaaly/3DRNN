@@ -9,6 +9,7 @@ The 28th International Conference on Machine Learning (ICML 2011)
 
 
 Explanation of Code:
+
 1. prePro3DSegmentData_alllevels.m        --> compute good and bad pairs of segments for all levels (including merges of over-segmented regions). This also voxelizes the segments
 
 2. prePro3DAutoEncodeData.m               --> run the merge segements through an autoencoder to reduce dimensions
