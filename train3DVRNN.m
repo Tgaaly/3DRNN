@@ -13,6 +13,8 @@ addpath(genpath('tools/'));
 tinyDatasetDebug = 1;
 flag_autoencoder=1;
 flag_dataaugment=0;
+flag_linearsvm=1;
+flag_nonlinearsvm=0;
 
 %%%%%%%%%%%%%%%%%%%%%%
 % data set: stanford background data set from Gould et al.
@@ -178,13 +180,16 @@ if flag_dataaugment==1
 end
 
 %% train
-X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
-     training.badPairsL,training.badPairsR,[],[],[],params);
+% X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
+%     training.badPairsL,training.badPairsR,[],[],[],params);
+if flag_autoencoder==1
+    load('final_workspace_rnn_withAE_1.mat','X','Wbot','W','Wcat');
+else
+    load('final_workspace_rnn_93.mat','X','Wbot','W','Wcat');
+end
 
-
-%X = minFunc(@costFctFull,X,options,decodeInfo,allData,params);
 % [Wbot,W,Wcat] = stack2param(X, decodeInfo);
-% 
+
 % save(fullTrainParamName,'Wbot','W','Wout','Wcat','params','options')
 
 %% test on training set just to verify
@@ -222,29 +227,46 @@ disp('complete');
 % goodBotL= params.f(Wbot* testing.goodPairsL);
 % goodBotR= params.f(Wbot* testing.goodPairsR);
 % goodHid = params.f(W * [goodBotL; goodBotR; ones(1,numGood)]);
-% 
+%
 % % apply Wcat
 % catHid = Wcat * [goodHid ; ones(1,numGood)];
-% 
+%
 % % for goot should all be [1 0]
 % catOutGood = softmax(catHid);
 % catOutGood_classIndex = find(catOutGood(1,:)>catOutGood(2,:));
 % disp([num2str(length(catOutGood_classIndex)) '/' num2str(size(catHid,2)) ' good correct --> ' num2str(length(catOutGood_classIndex)/size(catHid,2))]);
-% 
+%
 % numBad = size(testing.badPairsL,2);%length(onlyGoodLabels);
 % badBotL= params.f(Wbot* testing.badPairsL);
 % badBotR= params.f(Wbot* testing.badPairsR);
 % badHid = params.f(W * [badBotL; badBotR; ones(1,numBad)]);
-% 
+%
 % % apply Wcat
 % catHid = Wcat * [badHid ; ones(1,numBad)];
-% 
+%
 % catOutBad = softmax(catHid);
 % catOutBad_classIndex = find(catOutBad(1,:)<catOutBad(2,:));
 % disp([num2str(length(catOutBad_classIndex)) '/' num2str(size(catHid,2)) ' bad correct --> ' num2str(length(catOutBad_classIndex)/size(catHid,2))]);
-% 
+%
 % disp('complete');
 
+%% try linear SVM
+if flag_linearsvm==1
+    good = [training.goodPairsL'  training.goodPairsR']';
+    bad = [training.badPairsL'  training.badPairsR']';
+    training_data = [good  bad];
+    actuallabels = [ones(size(good,2),1)*1; ones(size(bad,2),1)*2];
+    SVMStruct = svmtrain(training_data',actuallabels)
+elseif flag_nonlinearsvm==1
+    good = [training.goodPairsL'  training.goodPairsR']';
+    bad = [training.badPairsL'  training.badPairsR']';
+    training_data = [good  bad];
+    actuallabels = [ones(size(good,2),1)*1; ones(size(bad,2),1)*2];
+    SVMStruct = svmtrain(training_data',actuallabels,'kernel_function','rbf')
+end
+    
+
+%% try kernel SVM
 
 %% test on completely new model
 cat_end_idx=20;
@@ -267,7 +289,37 @@ if flag_autoencoder==1
     [~, mappedFeat] = run_data_through_autoenc(model,testing.badPairsR');
     testing.badPairsR = [mappedFeat  ones(size(mappedFeat,1),1)]';
 end
-    
+
+%% test linear svm 
+if flag_linearsvm==1
+    good = [testing.goodPairsL'  testing.goodPairsR']';
+    bad = [testing.badPairsL'  testing.badPairsR']';
+    testing_data = [good  bad];
+    actuallabels = [ones(size(good,2),1)*1; ones(size(bad,2),1)*2];
+    predlabels = svmclassify(SVMStruct, testing_data');
+    corr=0;
+    for i=1:length(actuallabels)
+        if actuallabels(i)==predlabels(i)
+            corr=corr+1;
+        end
+    end
+    linear_svm_acc = corr / length(actuallabels)
+elseif flag_nonlinearsvm==1
+    good = [testing.goodPairsL'  testing.goodPairsR']';
+    bad = [testing.badPairsL'  testing.badPairsR']';
+    testing_data = [good  bad];
+    actuallabels = [ones(size(good,2),1)*1; ones(size(bad,2),1)*2];
+    predlabels = svmclassify(SVMStruct, testing_data');
+    corr=0;
+    for i=1:length(actuallabels)
+        if actuallabels(i)==predlabels(i)
+            corr=corr+1;
+        end
+    end
+    nonlinear_svm_acc = corr / length(actuallabels)
+end
+
+%%
 numGood = size(testing.goodPairsL,2);%length(onlyGoodLabels);
 goodBotL= params.f(Wbot* testing.goodPairsL);
 goodBotR= params.f(Wbot* testing.goodPairsR);
@@ -301,14 +353,4 @@ disp(['over all accuracy = ' num2str((length(catOutGood_classIndex)+length(catOu
 disp('complete');
 
 
-% for t=1:length(testIDs);
-
-
-%%
-%%%%%%%%%%%%%%%%%%%%%
-% run analysis
-% test3DVRNN
-
-% visualize trees
-% visualizeImageTrees
-% 
+%% test on full models
