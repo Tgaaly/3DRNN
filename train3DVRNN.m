@@ -11,6 +11,8 @@ addpath(genpath('tools/'));
 
 % set to 1 if you have <5GB RAM or you just want to see what's going on for debugging/studying
 tinyDatasetDebug = 1;
+flag_autoencoder=1;
+flag_dataaugment=0;
 
 %%%%%%%%%%%%%%%%%%%%%%
 % data set: stanford background data set from Gould et al.
@@ -21,7 +23,7 @@ dataSet = 'train';
 %%%%%%%%%%%%%%%%%%%%%%%
 % minfunc options (not tuned)
 options.Method = 'lbfgs';
-options.MaxIter = 1000;
+options.MaxIter = 200;
 optionsPT=options;
 options.TolX = 1e-4;
 
@@ -97,7 +99,7 @@ initParams
 % train Wbot layer and first RNN collapsing decisions with all possible correct and incorrect segment pairs
 % this uses the training data more efficiently than the purely greedy full parser training that only looks at some pairs
 % both could have been combined into one training as well.
-[X decodeInfo] = param2stack(Wbot,W,Wout,Wcat);
+[X decodeInfo] = param2stack(Wbot,W,Wcat);
 
 % goodPairsL --> 120 x 1455
 % goodPairsR --> 120 x 1455
@@ -110,64 +112,80 @@ initParams
 flag_runmycode=1;
 if flag_runmycode==1
     params.numLabels = 2;%17; % we never predict 0 (void)
-    params.numFeat = 2744;%119;
+    params.numFeat = 1331;%9261;%2744;%119;
+    params.numHid = 1332;%9262;
     cat_end_idx=30;
     subsample_models=1;
     gt_subsample=1;
-    load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '.mat']);
+    %load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '.mat']);
+    load(['good_bad_pairs_all_levels_11bins.mat']);
     initParams
-    [X decodeInfo] = param2stack(Wbot,W,Wout,Wcat);
-%     goodPairsL2 = zeros(params.numFeat+1,length(goodPairsL));
-%     goodPairsR2 = zeros(params.numFeat+1,length(goodPairsR));
-%     badPairsL2 = zeros(params.numFeat+1,length(badPairsL));
-%     badPairsR2 = zeros(params.numFeat+1,length(badPairsR));
-%     for i=1:length(goodPairsL)
-%         goodPairsL2(:,i) = [ goodPairsL{i}(:)  ; 1];%ones(length(goodPairsL{i}(:)),1)];
-%         goodPairsR2(:,i) = [ goodPairsR{i}(:)  ; 1];%goodPairsR{i}(:);
-%         badPairsL2(:,i) = [ badPairsL{i}(:)  ; 1];%badPairsL{i}(:);
-%         badPairsR2(:,i) = [ badPairsR{i}(:)  ; 1];%badPairsR{i}(:);
-%     end
-%     goodPairsL = goodPairsL2;
-%     goodPairsR = goodPairsR2;
-%     badPairsL = badPairsL2;
-%     badPairsR = badPairsR2;
-%     onlyGoodL = goodPairsL2;
-%     onlyGoodR = goodPairsR2;
-%     onlyGoodLabels = [2*ones(size(onlyGoodR,2),1)]';% zeros(size(onlyGoodR,2),1)];
-%     allSegLabels=ones(1,length(cell2mat(allSegLabel)));
-%     allSegs2 = zeros(params.numFeat+1,length(allSegs));
-%     for i=1:length(allSegs)
-%         allSegs2(:,i) = [allSegs(:,i) ; 1];
-%     end
-%     allSegs = allSegs2;
+    [X decodeInfo] = param2stack(Wbot,W,Wcat);
+end
+
+numTraining = 1000;
+numTesting = 1000;
+sel = randperm(length(goodPairsL),numTraining+numTesting);
+sel_tr = sel(1:numTraining);
+sel_te = sel(numTraining+1:end);
+
+numGood=size(goodPairsL,2);
+numBad=size(badPairsL,2);
+
+layers = [500];
+lambda=2;
+if flag_autoencoder==1
+    load(['data/autoencoder_' num2str(layers(1)) '_' num2str(length(layers)) '_' ...
+        num2str(lambda) '_11bins2.mat'],'model','goodPairsL_dr','goodPairsR_dr','badPairsL_dr','badPairsR_dr');
+    goodPairsL = [goodPairsL_dr  ones(numGood,1)]';%[mappedRep(1:numGood,:)  ones(numGood,1)]';
+    goodPairsR = [goodPairsR_dr  ones(numGood,1)]';%[mappedRep(numGood+1:2*numGood,:) ones(numGood,1)]';
+    badPairsL = [badPairsL_dr  ones(numBad,1)]';%[mappedRep(2*numGood+1:2*numGood+numBad,:) ones(numBad,1)]';
+    badPairsR = [badPairsR_dr  ones(numBad,1)]';%[mappedRep(2*numGood+numBad+1:end,:) ones(numBad,1)]';
+    training.goodPairsL = goodPairsL;
+    training.goodPairsR = goodPairsR;
+    training.badPairsL = badPairsL;
+    training.badPairsR = badPairsR;
+    params.numFeat = 500;
+    params.numHid = size(goodPairsL,1);%50;
+    initParams
+    [X decodeInfo] = param2stack(Wbot,W,Wcat);
 end
 
 
-training.goodPairsL = goodPairsL(:,1:end);
-training.goodPairsR = goodPairsR(:,1:end);
-training.badPairsL = badPairsL(:,1:end);
-training.badPairsR = badPairsR(:,1:end);
+training.goodPairsL = goodPairsL(:,sel_tr);
+clear goodPairsL
+training.goodPairsR = goodPairsR(:,sel_tr);
+clear goodPairsR
+training.badPairsL = badPairsL(:,sel_tr);
+clear badPairsL
+training.badPairsR = badPairsR(:,sel_tr);
+clear badPairsR
 
 %% data augment
-
-goodPairsL2 = goodPairsR; % swap
-goodPairsR2 = goodPairsL;
-badPairsL2 = badPairsR;
-badPairsR2 = badPairsL;
-training.goodPairsL = [training.goodPairsL  goodPairsL2];
-training.goodPairsR = [training.goodPairsR  goodPairsR2];
-training.badPairsL = [training.badPairsL  badPairsL2];
-training.badPairsR = [training.badPairsR  badPairsR2];
+if flag_dataaugment==1
+    goodPairsL2 = training.goodPairsR; % swap
+    goodPairsR2 = training.goodPairsL;
+    badPairsL2 = training.badPairsR;
+    badPairsR2 = training.badPairsL;
+    training.goodPairsL = [training.goodPairsL  goodPairsL2];
+    clear goodPairsL2
+    training.goodPairsR = [training.goodPairsR  goodPairsR2];
+    clear goodPairsR2
+    training.badPairsL = [training.badPairsL  badPairsL2];
+    clear badPairsL2
+    training.badPairsR = [training.badPairsR  badPairsR2];
+    clear badPairsR2
+end
 
 %% train
-X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,goodPairsL,goodPairsR,...
-    badPairsL,badPairsR,[],[],allSegs,params);
+X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
+     training.badPairsL,training.badPairsR,[],[],[],params);
 
 
 %X = minFunc(@costFctFull,X,options,decodeInfo,allData,params);
-[Wbot,W,Wout,Wcat] = stack2param(X, decodeInfo);
-
-save(fullTrainParamName,'Wbot','W','Wout','Wcat','params','options')
+% [Wbot,W,Wcat] = stack2param(X, decodeInfo);
+% 
+% save(fullTrainParamName,'Wbot','W','Wout','Wcat','params','options')
 
 %% test on training set just to verify
 numGood = size(training.goodPairsL,2);%length(onlyGoodLabels);
@@ -230,12 +248,26 @@ disp('complete');
 
 %% test on completely new model
 cat_end_idx=20;
-load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '_test.mat']);
-testing.goodPairsL = goodPairsL;
-testing.goodPairsR = goodPairsR;
-testing.badPairsL = badPairsL;
-testing.badPairsR = badPairsR;
+clear training
+% load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '_test.mat']);
+load(['good_bad_pairs_all_levels_11bins.mat'],'goodPairsL','goodPairsR','badPairsL','badPairsR');
+testing.goodPairsL = goodPairsL(:,sel_te);
+testing.goodPairsR = goodPairsR(:,sel_te);
+testing.badPairsL = badPairsL(:,sel_te);
+testing.badPairsR = badPairsR(:,sel_te);
 
+
+if flag_autoencoder==1
+    [~, mappedFeat] = run_data_through_autoenc(model,testing.goodPairsL');
+    testing.goodPairsL = [mappedFeat  ones(size(mappedFeat,1),1)]';
+    [~, mappedFeat] = run_data_through_autoenc(model,testing.goodPairsR');
+    testing.goodPairsR = [mappedFeat  ones(size(mappedFeat,1),1)]';
+    [~, mappedFeat] = run_data_through_autoenc(model,testing.badPairsL');
+    testing.badPairsL = [mappedFeat  ones(size(mappedFeat,1),1)]';
+    [~, mappedFeat] = run_data_through_autoenc(model,testing.badPairsR');
+    testing.badPairsR = [mappedFeat  ones(size(mappedFeat,1),1)]';
+end
+    
 numGood = size(testing.goodPairsL,2);%length(onlyGoodLabels);
 goodBotL= params.f(Wbot* testing.goodPairsL);
 goodBotR= params.f(Wbot* testing.goodPairsR);

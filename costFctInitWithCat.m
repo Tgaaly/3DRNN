@@ -5,7 +5,7 @@ function [cost,grad,catRightBot,catTotalBot,catRightTop,catTotalTop] = ...
 %compute error at last layer (softmax out) --> classifier Wcat (is Wlabel
 %in the paper)
 cost=0;
-[Wbot,W,Wout,Wcat] = stack2param(X, decodeInfo);
+[Wbot,W,Wcat] = stack2param(X, decodeInfo);
 
 %% for good pairs
 numOnlyGood = size(goodPairsL,2);
@@ -218,7 +218,7 @@ df_Wcat = df_Wcat_CAT + params.regPTC * Wcat;
 
 df_Wbot = df_Wbot_CAT;%  + 1./length(ignoreGBPairs) * df_Wbot + params.regPTC * Wbot;
 df_W    = df_W_CAT;%  + 1./length(ignoreGBPairs) * df_W    + params.regPTC * W;
-df_Wout = zeros(size(Wout));% 1./length(ignoreGBPairs) * df_Wout + params.regPTC * Wout;
+% df_Wout = zeros(size(Wout));% 1./length(ignoreGBPairs) * df_Wout + params.regPTC * Wout;
 
 
-[grad,~] = param2stack(df_Wbot,df_W,df_Wout,df_Wcat);
+[grad,~] = param2stack(df_Wbot,df_W,df_Wcat);

@@ -4,6 +4,9 @@ fanIn = params.numFeat;
 range = 1/sqrt(fanIn);
 Wbot = -range + (2*range).*rand(params.numHid,fanIn);
 Wbot(:,end+1) = zeros(params.numHid,1);
+% override Wbot coz we dont want to learn a semantic space
+Wbot = eye(params.numHid);
+
 
 fanIn = 2*params.numHid;
 range = 1/sqrt(fanIn);
