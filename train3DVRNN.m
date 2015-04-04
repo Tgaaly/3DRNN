@@ -180,17 +180,16 @@ if flag_dataaugment==1
 end
 
 %% train
-% X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
-%     training.badPairsL,training.badPairsR,[],[],[],params);
-if flag_autoencoder==1
-    load('final_workspace_rnn_withAE_1.mat','X','Wbot','W','Wcat');
-else
-    load('final_workspace_rnn_93.mat','X','Wbot','W','Wcat');
-end
+X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
+    training.badPairsL,training.badPairsR,[],[],[],params);
+% if flag_autoencoder==1
+%     load('final_workspace_rnn_withAE_1.mat','X','Wbot','W','Wcat');
+% else
+%     load('final_workspace_rnn_93.mat','X','Wbot','W','Wcat');
+% end
 
-% [Wbot,W,Wcat] = stack2param(X, decodeInfo);
-
-% save(fullTrainParamName,'Wbot','W','Wout','Wcat','params','options')
+[Wbot,W,Wcat] = stack2param(X, decodeInfo);
+save(fullTrainParamName,'Wbot','W','Wout','Wcat','params','options')
 
 %% test on training set just to verify
 numGood = size(training.goodPairsL,2);%length(onlyGoodLabels);
@@ -219,36 +218,6 @@ catOutBad_classIndex = find(catOutBad(1,:)<catOutBad(2,:));
 disp([num2str(length(catOutBad_classIndex)) '/' num2str(size(catHid,2)) ' bad correct --> ' num2str(length(catOutBad_classIndex)/size(catHid,2))]);
 
 disp('complete');
-
-
-%% testing on test set to verify
-
-% numGood = size(testing.goodPairsL,2);%length(onlyGoodLabels);
-% goodBotL= params.f(Wbot* testing.goodPairsL);
-% goodBotR= params.f(Wbot* testing.goodPairsR);
-% goodHid = params.f(W * [goodBotL; goodBotR; ones(1,numGood)]);
-%
-% % apply Wcat
-% catHid = Wcat * [goodHid ; ones(1,numGood)];
-%
-% % for goot should all be [1 0]
-% catOutGood = softmax(catHid);
-% catOutGood_classIndex = find(catOutGood(1,:)>catOutGood(2,:));
-% disp([num2str(length(catOutGood_classIndex)) '/' num2str(size(catHid,2)) ' good correct --> ' num2str(length(catOutGood_classIndex)/size(catHid,2))]);
-%
-% numBad = size(testing.badPairsL,2);%length(onlyGoodLabels);
-% badBotL= params.f(Wbot* testing.badPairsL);
-% badBotR= params.f(Wbot* testing.badPairsR);
-% badHid = params.f(W * [badBotL; badBotR; ones(1,numBad)]);
-%
-% % apply Wcat
-% catHid = Wcat * [badHid ; ones(1,numBad)];
-%
-% catOutBad = softmax(catHid);
-% catOutBad_classIndex = find(catOutBad(1,:)<catOutBad(2,:));
-% disp([num2str(length(catOutBad_classIndex)) '/' num2str(size(catHid,2)) ' bad correct --> ' num2str(length(catOutBad_classIndex)/size(catHid,2))]);
-%
-% disp('complete');
 
 %% try linear SVM
 if flag_linearsvm==1
@@ -353,4 +322,3 @@ disp(['over all accuracy = ' num2str((length(catOutGood_classIndex)+length(catOu
 disp('complete');
 
 
-%% test on full models
