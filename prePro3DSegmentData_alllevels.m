@@ -23,11 +23,20 @@ FLAGS.flag_noise = 0;
 FLAGS.flag_missingdata=0;
 FLAGS.flag_doDecomposition=1;
 
+tag = 'test'
+
 % %% get model IDs
 cat_ID=[1:20:400 400];
-load('../3d_recog_by_parts_humanprior/trainIDs.mat');
-train_IDs = [train_IDs 151 161 171 181 191 201 211 221 231 241 251 281 291 301 311];
 
+if strcmp(tag,'test')==1
+    load('../3d_recog_by_parts_humanprior/testIDs.mat');
+    train_IDs = test_IDs;
+    subsamp=5;
+else
+    load('../3d_recog_by_parts_humanprior/trainIDs.mat');
+    train_IDs = [train_IDs 151 161 171 181 191];% 201];% 211 221 231 241 251 281 291 301 311];
+    subsamp=1;
+end
 % subsample=3;
 % probThresh=0.2;%4;
 
@@ -39,7 +48,7 @@ id_k_mapping = [1:400 ; ones(1,400)*22]';% ; 103 21 ; 125 15];
 % all_ID=[1:subsample_models:360 381:subsample_models:400];
 
 
-for ii=1:length(train_IDs)
+for ii=1:subsamp:length(train_IDs)
     tic
     ID=train_IDs(ii);
     

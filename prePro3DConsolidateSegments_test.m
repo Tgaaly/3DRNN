@@ -3,7 +3,7 @@ dbstop if error
 
 %%
 tag1=[];%'alllevel';%[];
-tag2='train';%[];
+tag2='test';%[];
 
 %% add paths
 addpath('../3d_recog_by_parts_humanprior/main_functions/');
@@ -48,7 +48,9 @@ countmerges = [];
 countbadmerges = [];
 counter=0;
 
-for i=1:subsamp:length(all_IDs)%mergefiles)-10
+load(['D:/data/temp_merges_20.mat']);
+alll=1:subsamp:length(all_IDs);
+for i=alll(20:end)%1:subsamp:length(all_IDs)%mergefiles)-10
 %for i=3:length(mergefiles)-10
     ID = all_IDs(i);
     %load([dirpath mergefiles(i).name])
@@ -102,6 +104,6 @@ goodPairsR = goodPairsR(:,1:startGoodIdx-1);
 badPairsL = badPairsL(:,1:startBadIdx-1);
 badPairsR = badPairsR(:,1:startBadIdx-1);
 
-save(['data/good_bad_pairs_' tag1 '_' tag2 '.mat'],'goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
+save(['D:/Datasets/good_bad_pairs_' tag1 '_' tag2 '.mat'],'goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
 
 disp('done')

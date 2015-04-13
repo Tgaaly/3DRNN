@@ -3,18 +3,40 @@
 % For questions, email richard @ socher .org
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-clear
-close all
+addpath('main_functions/');
+addpath(genpath('presegmentation/'));
+addpath('primitiveBenchmark/');
+addpath('estimation/');
+addpath('mixtures/');
+addpath('bow/');
+addpath('matching/');
+addpath('database/');
+addpath('geometry/');
+addpath('parameters/');
+addpath('visualize/');
+addpath('human_prior/');
+addpath(genpath('geometry/kdtree'));
+addpath('../drtoolbox/techniques/');
+addpath('experiments/');
+addpath('loaders/');
+addpath('tools/');
+addpath('tools/minFunc');
+
+
+clear, close all
+format compact
 dbstop if error
 
-addpath(genpath('tools/'));
-
 % set to 1 if you have <5GB RAM or you just want to see what's going on for debugging/studying
+flag_recompute=1;
+
 tinyDatasetDebug = 1;
 flag_autoencoder=1;
-flag_dataaugment=0;
-flag_linearsvm=1;
+flag_dataaugment=1;
+flag_linearsvm=0;
 flag_nonlinearsvm=0;
+flag_semanticspace = 1;
+flag_validation=1;
 
 %%%%%%%%%%%%%%%%%%%%%%
 % data set: stanford background data set from Gould et al.
@@ -25,7 +47,7 @@ dataSet = 'train';
 %%%%%%%%%%%%%%%%%%%%%%%
 % minfunc options (not tuned)
 options.Method = 'lbfgs';
-options.MaxIter = 200;
+options.MaxIter = 300;
 optionsPT=options;
 options.TolX = 1e-4;
 
@@ -120,16 +142,44 @@ if flag_runmycode==1
     subsample_models=1;
     gt_subsample=1;
     %load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '.mat']);
-    load(['good_bad_pairs_all_levels_11bins.mat']);
-    initParams
+    %load(['good_bad_pairs_all_levels_11bins.mat']);
+    load('D:/Datasets/good_bad_pairs__train.mat');
+    if flag_semanticspace==1
+        initParamsWithSemantic
+    else
+        initParams
+    end
     [X decodeInfo] = param2stack(Wbot,W,Wcat);
 end
 
-numTraining = 1000;
-numTesting = 1000;
-sel = randperm(length(goodPairsL),numTraining+numTesting);
+%% split into training, validation and testing
+numValidation = 5000;
+numTraining = size(goodPairsL,2) - numValidation;
+
+
+%numTesting = 1000;
+indices = [1:size(goodPairsL,2)];
+sel = randperm(length(goodPairsL),numTraining);%+numTesting);
 sel_tr = sel(1:numTraining);
-sel_te = sel(numTraining+1:end);
+indices(sel_tr)=[];
+%sel = randperm(length(indices),numValidation);%+numTesting);
+sel_val = indices;%(sel(1:numValidation));
+
+assert(isempty(intersect(sel_val,sel_tr)))
+
+
+goodPairsL_tr = goodPairsL(:,sel_tr);
+goodPairsR_tr = goodPairsR(:,sel_tr);
+badPairsL_tr = badPairsL(:,sel_tr);
+badPairsR_tr = badPairsR(:,sel_tr);
+
+goodPairsL_val = goodPairsL(:,sel_val);
+goodPairsR_val = goodPairsR(:,sel_val);
+badPairsL_val = badPairsL(:,sel_val);
+badPairsR_val = badPairsR(:,sel_val);
+% all = [1:length(goodPairsL)];
+% all(sel_tr)=[];
+% sel_te = all;%sel(numTraining+1:end);
 
 numGood=size(goodPairsL,2);
 numBad=size(badPairsL,2);
@@ -143,25 +193,36 @@ if flag_autoencoder==1
     goodPairsR = [goodPairsR_dr  ones(numGood,1)]';%[mappedRep(numGood+1:2*numGood,:) ones(numGood,1)]';
     badPairsL = [badPairsL_dr  ones(numBad,1)]';%[mappedRep(2*numGood+1:2*numGood+numBad,:) ones(numBad,1)]';
     badPairsR = [badPairsR_dr  ones(numBad,1)]';%[mappedRep(2*numGood+numBad+1:end,:) ones(numBad,1)]';
-    training.goodPairsL = goodPairsL;
-    training.goodPairsR = goodPairsR;
-    training.badPairsL = badPairsL;
-    training.badPairsR = badPairsR;
+%     training.goodPairsL = goodPairsL(:,sel_tr);
+%     training.goodPairsR = goodPairsR(:,sel_tr);
+%     training.badPairsL = badPairsL(:,sel_tr);
+%     training.badPairsR = badPairsR(:,sel_tr);
+%     validation.goodPairsL = goodPairsL(:,sel_val);
+%     validation.goodPairsR = goodPairsR(:,sel_val);
+%     validation.badPairsL = badPairsL(:,sel_val);
+%     validation.badPairsR = badPairsR(:,sel_val);
     params.numFeat = 500;
     params.numHid = size(goodPairsL,1);%50;
-    initParams
+    if flag_semanticspace==1
+        initParamsWithSemantic
+    else
+        initParams
+    end
     [X decodeInfo] = param2stack(Wbot,W,Wcat);
 end
 
 
 training.goodPairsL = goodPairsL(:,sel_tr);
-clear goodPairsL
 training.goodPairsR = goodPairsR(:,sel_tr);
-clear goodPairsR
 training.badPairsL = badPairsL(:,sel_tr);
-clear badPairsL
 training.badPairsR = badPairsR(:,sel_tr);
-clear badPairsR
+
+validation.goodPairsL = goodPairsL(:,sel_val);
+validation.goodPairsR = goodPairsR(:,sel_val);
+validation.badPairsL = badPairsL(:,sel_val);
+validation.badPairsR = badPairsR(:,sel_val);
+
+clear badPairsR goodPairsL goodPairsR badPairsL
 
 %% data augment
 if flag_dataaugment==1
@@ -180,13 +241,108 @@ if flag_dataaugment==1
 end
 
 %% train
-X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
-    training.badPairsL,training.badPairsR,[],[],[],params);
-% if flag_autoencoder==1
-%     load('final_workspace_rnn_withAE_1.mat','X','Wbot','W','Wcat');
-% else
-%     load('final_workspace_rnn_93.mat','X','Wbot','W','Wcat');
-% end
+if flag_validation==1
+   
+    acc_val=0;
+    all_acc_val=[];
+    all_acc_tr=[];
+    optionsPT.MaxIter=20;
+    theindex=1;
+    X_save=[];
+    while theindex < 50% acc_val<99.99
+        rand_ids = randperm(size(training.goodPairsL,2),size(training.goodPairsL,2));
+        training.goodPairsL = training.goodPairsL(:,rand_ids);
+        training.goodPairsR = training.goodPairsR(:,rand_ids);
+        training.badPairsL = training.badPairsL(:,rand_ids);
+        training.badPairsR = training.badPairsR(:,rand_ids);
+        assert(length(rand_ids)==length(unique(rand_ids)))
+        X = minFunc(@costFctInitWithCatWithSemantic,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
+            training.badPairsL,training.badPairsR,[],[],[],params);
+        
+        [Wbot,W,Wcat] = stack2param(X, decodeInfo);
+        X_save{theindex}=X;    
+        
+        numGood = size(training.goodPairsL,2);%length(onlyGoodLabels);
+        goodBotL= params.f(Wbot* training.goodPairsL);
+        goodBotR= params.f(Wbot* training.goodPairsR);
+        goodHid = params.f(W * [goodBotL; goodBotR; ones(1,numGood)]);
+
+        % apply Wcat
+        catHid = Wcat * [goodHid ; ones(1,numGood)];
+
+        % for goot should all be [1 0]
+        numGood = size(catHid,2);
+        catOutGood = softmax(catHid);
+        catOutGood_classIndex = find(catOutGood(1,:)>catOutGood(2,:));
+
+        numBad = size(training.badPairsL,2);%length(onlyGoodLabels);
+        badBotL= params.f(Wbot* training.badPairsL);
+        badBotR= params.f(Wbot* training.badPairsR);
+        badHid = params.f(W * [badBotL; badBotR; ones(1,numBad)]);
+
+        % apply Wcat
+        catHid = Wcat * [badHid ; ones(1,numBad)];
+
+        numBad = size(catHid,2);
+        catOutBad = softmax(catHid);
+        catOutBad_classIndex = find(catOutBad(1,:)<catOutBad(2,:));
+        acc_tr = (length(catOutGood_classIndex)+length(catOutBad_classIndex))/(numGood+numBad);
+        all_acc_tr = [all_acc_tr acc_tr];
+
+        numGood = size(validation.goodPairsL,2);%length(onlyGoodLabels);
+        goodBotL= params.f(Wbot* validation.goodPairsL);
+        goodBotR= params.f(Wbot* validation.goodPairsR);
+        goodHid = params.f(W * [goodBotL; goodBotR; ones(1,numGood)]);
+
+        % apply Wcat
+        catHid = Wcat * [goodHid ; ones(1,numGood)];
+
+        % for goot should all be [1 0]
+        numGood = size(catHid,2);
+        catOutGood = softmax(catHid);
+        catOutGood_classIndex = find(catOutGood(1,:)>catOutGood(2,:));
+
+        numBad = size(validation.badPairsL,2);%length(onlyGoodLabels);
+        badBotL= params.f(Wbot* validation.badPairsL);
+        badBotR= params.f(Wbot* validation.badPairsR);
+        badHid = params.f(W * [badBotL; badBotR; ones(1,numBad)]);
+
+        % apply Wcat
+        catHid = Wcat * [badHid ; ones(1,numBad)];
+
+        numBad = size(catHid,2);
+        catOutBad = softmax(catHid);
+        catOutBad_classIndex = find(catOutBad(1,:)<catOutBad(2,:));
+
+        acc_val = (length(catOutGood_classIndex)+length(catOutBad_classIndex))/(numGood+numBad);
+        disp(['over all accuracy = ' num2str((length(catOutGood_classIndex)+length(catOutBad_classIndex))/(numGood+numBad))]);
+        all_acc_val = [all_acc_val acc_val];
+        
+        theindex = theindex+1;
+    end
+    
+    figure(1), clf, hold on, plot(1-all_acc_val, 'r-'), plot(1-all_acc_tr, 'b-'), hold off
+    X=X_save{25};
+    
+elseif flag_semanticspace==1
+    
+    X = minFunc(@costFctInitWithCatWithSemantic,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
+        training.badPairsL,training.badPairsR,[],[],[],params);
+    
+    save(['trained_RNN_' num2str(numTraining) '_ae_' num2str(flag_autoencoder) '_da_' num2str(flag_dataaugment) '_semantic.mat']);
+elseif flag_recompute==1
+    X = minFunc(@costFctInitWithCat,X,optionsPT,decodeInfo,training.goodPairsL,training.goodPairsR,...
+        training.badPairsL,training.badPairsR,[],[],[],params);
+    save(['trained_RNN_' num2str(numTraining) '_ae_' num2str(flag_autoencoder) '_da_' num2str(flag_dataaugment) '.mat']);
+else
+    if exist(['trained_RNN_' num2str(numTraining) '_ae_' num2str(flag_autoencoder) '_da_' num2str(flag_dataaugment) '.mat'])
+        load(['trained_RNN_' num2str(numTraining) '_ae_' num2str(flag_autoencoder) '_da_' num2str(flag_dataaugment) '.mat'],'X','decodeInfo');
+    elseif flag_autoencoder==1
+        load('final_workspace_rnn_withAE_1.mat','X','Wbot','W','Wcat');
+    else
+        load('final_workspace_rnn_93.mat','X','Wbot','W','Wcat');
+    end
+end
 
 [Wbot,W,Wcat] = stack2param(X, decodeInfo);
 save(fullTrainParamName,'Wbot','W','Wout','Wcat','params','options')
@@ -234,18 +390,20 @@ elseif flag_nonlinearsvm==1
     SVMStruct = svmtrain(training_data',actuallabels,'kernel_function','rbf')
 end
     
+%% test on large test set
 
-%% try kernel SVM
+load('good_bad_pairs_all_levels_11bins_72.mat','goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
+
 
 %% test on completely new model
 cat_end_idx=20;
 clear training
 % load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '_test.mat']);
-load(['good_bad_pairs_all_levels_11bins.mat'],'goodPairsL','goodPairsR','badPairsL','badPairsR');
-testing.goodPairsL = goodPairsL(:,sel_te);
-testing.goodPairsR = goodPairsR(:,sel_te);
-testing.badPairsL = badPairsL(:,sel_te);
-testing.badPairsR = badPairsR(:,sel_te);
+load(['good_bad_pairs_all_levels_11bins_72.mat'],'goodPairsL','goodPairsR','badPairsL','badPairsR');
+testing.goodPairsL = goodPairsL;%(:,sel_te);
+testing.goodPairsR = goodPairsR;%(:,sel_te);
+testing.badPairsL = badPairsL;%(:,sel_te);
+testing.badPairsR = badPairsR;%(:,sel_te);
 
 
 if flag_autoencoder==1
@@ -258,6 +416,14 @@ if flag_autoencoder==1
     [~, mappedFeat] = run_data_through_autoenc(model,testing.badPairsR');
     testing.badPairsR = [mappedFeat  ones(size(mappedFeat,1),1)]';
 end
+
+%random shuffle just to be sure
+ri_good = randperm(size(testing.goodPairsL,2),size(testing.goodPairsL,2));
+ri_bad = randperm(size(testing.badPairsL,2),size(testing.badPairsL,2));
+testing.goodPairsL = testing.goodPairsL(:,ri_good);
+testing.goodPairsR = testing.goodPairsR(:,ri_good);
+testing.badPairsL = testing.badPairsL(:,ri_bad);
+testing.badPairsR = testing.badPairsR(:,ri_bad);
 
 %% test linear svm 
 if flag_linearsvm==1
