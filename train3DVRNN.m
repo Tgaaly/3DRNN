@@ -147,7 +147,11 @@ if flag_runmycode==1
     gt_subsample=1;
     %load(['good_bad_pairs_' num2str(cat_end_idx) '_' num2str(subsample_models) '_' num2str(gt_subsample) '.mat']);
     %load(['good_bad_pairs_all_levels_11bins.mat']);
-    load('D:/Datasets/good_bad_pairs__train.mat');
+    if ispc
+        load('D:/Datasets/good_bad_pairs__train.mat');
+    else
+        load('good_bad_pairs__train.mat');
+    end
     if flag_semanticspace==1
         initParamsWithSemantic
     else
@@ -196,11 +200,16 @@ numBad=size(badPairsL,2);
 layers = [500];
 lambda=2;
 if flag_autoencoder==1
+    if ispc
+        prefix = 'D:/Datasets/';
+    else
+        prefix = '';
+    end
     if flag_voxel01==1
-        load(['D:/Datasets/autoencoder_' num2str(layers(1)) '_' num2str(length(layers)) '_' ...
+        load([prefix 'autoencoder_' num2str(layers(1)) '_' num2str(length(layers)) '_' ...
             num2str(lambda) '_nodt.mat'],'model','goodPairsL_dr','goodPairsR_dr','badPairsL_dr','badPairsR_dr');
     else
-           load(['D:/Datasets/autoencoder_' num2str(layers(1)) '_' num2str(length(layers)) '_' ...
+           load([prefix 'autoencoder_' num2str(layers(1)) '_' num2str(length(layers)) '_' ...
             num2str(lambda) '_dt.mat'],'model','goodPairsL_dr','goodPairsR_dr','badPairsL_dr','badPairsR_dr');
     end
     goodPairsL = [goodPairsL_dr  ones(numGood,1)]';%[mappedRep(1:numGood,:)  ones(numGood,1)]';

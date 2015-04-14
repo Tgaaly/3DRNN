@@ -13,7 +13,11 @@ gt_subsample=1;
 % load(['good_bad_pairs_all_levels_11bins.mat'],'goodPairsL','goodPairsR','badPairsL',...
 %     'badPairsR','allSegs');
 % load(['D:/Datasets/good_bad_pairs_' tag '.mat'],'goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
-load(['D:/Datasets/good_bad_pairs__train.mat'],'goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
+if ispc
+    load(['D:/Datasets/good_bad_pairs__train.mat'],'goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
+else
+    load('good_bad_pairs__train','goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
+end
 
 if flag_voxel01==1
     for i=1:size(goodPairsL,2)
