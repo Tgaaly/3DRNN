@@ -20,8 +20,8 @@ addpath('../3d_recog_by_parts_humanprior/visualize');
 dirpath = 'data/merges/';
 mergefiles = dir(dirpath);
 
-bin_sz=0.15;%0.1, 0.15 - good, 0.2 - bad
-dimFeat = 3376;%2744+1;%additional 1 for bias in network
+bin_sz=0.2;%0.1, 0.15 - good, 0.2 - bad
+dimFeat = 1332;%2744+1;%additional 1 for bias in network
 
 allGoodMerges=[];
 allBadMerges=[];
@@ -48,13 +48,13 @@ countmerges = [];
 countbadmerges = [];
 counter=0;
 
-load(['D:/data/temp_merges_20.mat']);
+% load(['D:/data/temp_merges_20.mat']);
 alll=1:subsamp:length(all_IDs);
-for i=alll(20:end)%1:subsamp:length(all_IDs)%mergefiles)-10
+for i=1:subsamp:length(all_IDs)%mergefiles)-10
 %for i=3:length(mergefiles)-10
     ID = all_IDs(i);
     %load([dirpath mergefiles(i).name])
-    load(['data/merges/merges_' num2str(ID) '.mat'],'merges','badmerges');
+    load(['D:/Datasets/merges/merges_' num2str(ID) '.mat'],'merges','badmerges');
     
     % compute voxels for good merges
     for m=1:length(merges)
@@ -68,6 +68,7 @@ for i=alll(20:end)%1:subsamp:length(all_IDs)%mergefiles)-10
         goodPairsR(:,startGoodIdx:startGoodIdx)= [seg_voxel2{1} ; 1];
         
         startGoodIdx = startGoodIdx + 1;
+        %m
     end
     %countmerges{i} = length(merges);
     

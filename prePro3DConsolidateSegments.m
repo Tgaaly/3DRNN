@@ -1,5 +1,6 @@
 clear, close all
 dbstop if error
+format compact
 
 %%
 tag1=[];%'alllevel';%[];
@@ -20,8 +21,8 @@ addpath('../3d_recog_by_parts_humanprior/visualize');
 dirpath = 'data/merges/';
 mergefiles = dir(dirpath);
 
-bin_sz=0.15;%0.1, 0.15 - good, 0.2 - bad
-dimFeat = 3376;%2744+1;%additional 1 for bias in network
+bin_sz=0.2;%0.1, 0.15 - good, 0.2 - bad
+dimFeat = 1332;%2744+1;%additional 1 for bias in network
 
 allGoodMerges=[];
 allBadMerges=[];
@@ -52,7 +53,7 @@ for i=1:subsamp:length(all_IDs)%mergefiles)-10
 %for i=3:length(mergefiles)-10
     ID = all_IDs(i);
     %load([dirpath mergefiles(i).name])
-    load(['data/merges/merges_' num2str(ID) '.mat'],'merges','badmerges');
+    load(['D:/Datasets/merges/merges_' num2str(ID) '.mat'],'merges','badmerges');
     
     % compute voxels for good merges
     for m=1:length(merges)
@@ -66,6 +67,7 @@ for i=1:subsamp:length(all_IDs)%mergefiles)-10
         goodPairsR(:,startGoodIdx:startGoodIdx)= [seg_voxel2{1} ; 1];
         
         startGoodIdx = startGoodIdx + 1;
+        %m
     end
     %countmerges{i} = length(merges);
     
@@ -82,6 +84,7 @@ for i=1:subsamp:length(all_IDs)%mergefiles)-10
             badPairsR(:,startBadIdx:startBadIdx)= [seg_voxel2{1} ; 1];
             
             startBadIdx = startBadIdx + 1;
+            %m
         end
         %countbadmerges{i} = length(badmerges);
 
@@ -102,6 +105,6 @@ goodPairsR = goodPairsR(:,1:startGoodIdx-1);
 badPairsL = badPairsL(:,1:startBadIdx-1);
 badPairsR = badPairsR(:,1:startBadIdx-1);
 
-save(['data/good_bad_pairs_' tag1 '_' tag2 '.mat'],'goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
+save(['D:/Datasets/good_bad_pairs_' tag1 '_' tag2 '.mat'],'goodPairsL', 'goodPairsR', 'badPairsL', 'badPairsR');
 
 disp('done')

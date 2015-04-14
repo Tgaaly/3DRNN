@@ -190,7 +190,7 @@ for ii=1:subsample:length(all_IDs)
     merges = merges(1:idx-1);
     badmerges = badmerges(1:idxBad-1);
    
-    save(['data/merges/merges_' tag1 '_' tag2 '_' num2str(ID) '.mat'],'merges','badmerges');
+    save(['D:/Datasets/merges/merges_' tag1 '_' tag2 '_' num2str(ID) '.mat'],'merges','badmerges');
     
 
 end
